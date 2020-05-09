@@ -10,6 +10,8 @@ def build_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-q", "--query", required=True,
 	help="Search Query")
+    parser.add_argument("-k", "--key", required=True,
+	help="API Key")
     parser.add_argument("-o", "--output", default=savepath,
 	help="Path to output directory")
     return parser
@@ -21,7 +23,7 @@ parser = build_parser()
 args = parser.parse_args()
 
 
-subscription_key = ""
+subscription_key = args.key
 search_url = "https://api.cognitive.microsoft.com/bing/v7.0/images/search"
 
 MAX_RESULTS = 300
