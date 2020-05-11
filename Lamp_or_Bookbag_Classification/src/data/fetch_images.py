@@ -3,6 +3,7 @@ import argparse
 import requests
 import cv2
 import os
+from pathlib import Path
 
 
 class fetch_images():
@@ -43,36 +44,35 @@ class fetch_images():
             results = response.json()
             print("[INFO] saving images for group {}-{} of {}...".format(
                 offset, offset + self.GROUP_SIZE, estNumResults))
+            for v in results["value"]:
+                try:
+                    # Send a get request to download the image
+                    print("[INFO] fetching: {}".format(v["contentUrl"]))
+                    r = requests.get(v["contentUrl"], timeout=30)
+                    # build the path to the output image
+                    ext = v["contentUrl"][v["contentUrl"].rfind("."):]
+                    p = os.path.sep.join([self.output, "{}{}".format(
+                        str(total).zfill(8), ext)])
+                    # Save the image to disk
+                    f = open(p, "wb")
+                    f.write(r.content)
+                    f.close()
+                # Catch errors
+                except Exception as e:
+                    # Check if it's an exception on the list, if so print message and skip
+                    if type(e) in self.EXCEPTIONS:
+                        print("[INFO] skipping: {}".format(v["contentUrl"]))
+                        continue
 
-        for v in results["value"]:
-            try:
-                # Send a get request to download the image
-                print("[INFO] fetching: {}".format(v["contentUrl"]))
-                r = requests.get(v["contentUrl"], timeout=30)
-                # build the path to the output image
-                ext = v["contentUrl"][v["contentUrl"].rfind("."):]
-                p = os.path.sep.join([self.output, "{}{}".format(
-                    str(total).zfill(8), ext)])
-                # Save the image to disk
-                f = open(p, "wb")
-                f.write(r.content)
-                f.close()
-            # Catch errors
-            except Exception as e:
-                # Check if it's an exception on the list, if so print message and skip
-                if type(e) in self.EXCEPTIONS:
-                    print("[INFO] skipping: {}".format(v["contentUrl"]))
+                image = cv2.imread(p)
+                # if the image is `None` then we could not properly load the
+                # image from disk (so it should be ignored)
+                if image is None:
+                    print("[INFO] deleting: {}".format(p))
+                    os.remove(p)
                     continue
-
-            image = cv2.imread(p)
-            # if the image is `None` then we could not properly load the
-            # image from disk (so it should be ignored)
-            if image is None:
-                print("[INFO] deleting: {}".format(p))
-                os.remove(p)
-                continue
-            # update the counter
-            total += 1
+                # update the counter
+                total += 1
 
 
 def build_parser():
@@ -90,7 +90,12 @@ def build_parser():
 def main():
     parser = build_parser()
     args = parser.parse_args()
-    fetch_images(args)
+    #Grabs the current directory
+    dirname = os.path.dirname(__file__)
+    #Builds the path to save location and creates a folder for the query term inside savepath.
+    args.output = os.path.join(dirname, args.output, args.query)
+    Path(args.output).mkdir(parents=True, exist_ok=True)
+    fetch_images(args).getImages()
 
 if __name__ == "__main__":
     main()
